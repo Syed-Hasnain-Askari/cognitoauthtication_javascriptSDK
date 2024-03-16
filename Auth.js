@@ -1,7 +1,19 @@
-import { CognitoIdentityProviderClient, InitiateAuthCommand, RespondToAuthChallengeCommand,AdminSetUserPasswordCommand} from "@aws-sdk/client-cognito-identity-provider";
+import { 
+    CognitoIdentityProviderClient,
+     InitiateAuthCommand, 
+     RespondToAuthChallengeCommand,
+     AdminSetUserPasswordCommand,
+     SignUpCommand,
+     AdminCreateUserCommand
+    } from "@aws-sdk/client-cognito-identity-provider";
 
+// Configure the AWS credentials and region
+const credentials = {
+    accessKeyId: process.env.VITE_ACCESS_KEY_ID,
+    secretAccessKey: process.env.VITE_SECRET_ACCESS_KEY,
+};
 // Initialize CognitoIdentityProviderClient
-const cognitoClient = new CognitoIdentityProviderClient({ region: "ap-south-1" });
+const cognitoClient = new CognitoIdentityProviderClient({ region: "ap-south-1",credentials });
 
 // Initialize function to configure SDK
 async function initializeCognito() {
@@ -19,8 +31,7 @@ async function initiateAuth(username, password) {
                 PASSWORD: password
             }
         }));
-        console.log(response);
-        return response.AuthenticationResult;
+        return response;
     } catch (error) {
         console.error("Error initiating authentication:", error);
         throw error;
@@ -28,8 +39,6 @@ async function initiateAuth(username, password) {
 }
 // Function to respond to authentication challenge
 async function respondToAuthChallenge(session, challengeResponses) {
-    console.log(challengeResponses,"challengeResponses");
-    console.log(session,"session");
     try {
         const response = await cognitoClient.send(new RespondToAuthChallengeCommand({
             ChallengeName: "NEW_PASSWORD_REQUIRED", // Change according to the challenge type
@@ -39,7 +48,7 @@ async function respondToAuthChallenge(session, challengeResponses) {
                 NEW_PASSWORD: challengeResponses.newPassword,
                  
             },  
-            Session:"AYABeMcHlLsre8g9MrBGEvl7PAAAHQABAAdTZXJ2aWNlABBDb2duaXRvVXNlclBvb2xzAAEAB2F3cy1rbXMATGFybjphd3M6a21zOmFwLXNvdXRoLTE6NjU0NDM0NDQ0NzkwOmtleS8yNjg1NWU1NC05NTMzLTRhNDctYjYxNy1hYjgwYjMyNDkxZWQAuAECAQB4IiNWL_vNLuA_HYRb4PrTYxCHn3uVXc9cwgKEMGhCAIsBJaHsAe9149bgTXUZx6xo-QAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDCwgLmmayIt5vqIU-gIBEIA7fWzFo8_6TVIrV_s5P4ScyLNRNbAT7_XOgOKpZAW4OFvnJuxUO8pZvAVk7HxuNxzByG9VeQ8N0_QnqLwCAAAAAAwAABAAAAAAAAAAAAAAAAAACbVOSj3gCylCb1vJmAXQl_____8AAAABAAAAAAAAAAAAAAABAAAA1SKichaAynsqIn0J8SbJH-4aGn6cL0xM8a6orGKZYeYTu2vVK5BurZQc90HQmPA8MSkZMBIo2AoX8b4jzKel4leDepvsaA3vUMjDtbV71p7WWXxBgO85ufLkbzrMHmnqKzvmh5dgEPCUFwH-6RTNPpAcFcRszwSraDRQ86l3vyI1yfTrfkPAWpwSsacfCazmUIfLyLnyXmXLMG09sWtAGk98j4hYh45ydLmM0v5FqFhZjYE9MZsNzDIKiTHa7tiB-lKIrqgVsWRWv_P68nB_J-6xTer4x8w6dILkbUtxqQrXHys6Q84"    
+            Session:session   
         }));
 
         return response;
@@ -86,25 +95,51 @@ async function initiateAndRespondToAuth(username, password, newPassword) {
 // console.log(res);
 
 // Other functions for PasswordReset, NewPassword, TokenRefresh, MFA, ConfirmMFA, etc. can be similarly implemented
-
-// Export the functions
-async function resetPassword(username, newPassword) {
-    
+// Function to create a new user
+async function createUser(username, password, email) {
     try {
-        const params = {
-            UserPoolId: '51uf6q4h1llc4n80hsle6lhqpk', // Replace 'your_user_pool_id' with your actual user pool ID
+        // Call the SignUp API to create a new user
+        const command = new AdminCreateUserCommand({
+            //ClientId: "51uf6q4h1llc4n80hsle6lhqpk", // Replace with your Cognito User Pool client ID
+            UserPoolId: "ap-south-1_iUi5jchz5",
             Username: username,
-            Password: newPassword,
-            Permanent: true
-        };
-
-        const command = new AdminSetUserPasswordCommand(params);
-        const data = await cognitoClient.send(command);
-        
-        console.log("Password reset successfully:", data);
-        return data;
+            TemporaryPassword: password,
+            UserAttributes: [
+                { Name: "email", Value: email },
+                // Add any additional user attributes here if needed
+            ],
+            DesiredDeliveryMediums: ["EMAIL"], // Specify the delivery medium for sending invitation messages to new users
+            MessageAction: "SUPPRESS", // Specify whether to send an invitation message to the new user
+        });
+        const response = await cognitoClient.send(command);
+        return response; // Return the response if needed
     } catch (error) {
-        console.error("Error resetting password:", error);
+        console.error("Error creating user:", error);
+        throw error;
+    }
+}
+async function passwordReset(username,password) {
+    try {
+        const authResult = await initiateAuth(username,password); // Provide a dummy password for initiating password reset
+        // Here, you may want to handle the challenge, but in this example, we'll assume it's handled externally
+        console.log('Password reset initiated. Challenge response needed:', authResult);
+        return authResult;
+    } catch (error) {
+        console.error('Password reset initiation failed:', error);
+        throw error;
+    }
+}
+
+// Function to set new password after password reset
+async function newPassword(session, newPassword) {
+    console.log(typeof session,"new password session");
+    try {
+        const authResult = await respondToAuthChallenge(session, { newPassword });
+        console.log('New password set successfully!');
+        // Here, you can store the tokens in localStorage or sessionStorage for future use
+        return authResult;
+    } catch (error) {
+        console.error('Setting new password failed:', error);
         throw error;
     }
 }
@@ -113,5 +148,7 @@ export {
     initializeCognito,
     initiateAuth,
     respondToAuthChallenge,
-    resetPassword
+    passwordReset,
+    newPassword,
+    createUser,
 };

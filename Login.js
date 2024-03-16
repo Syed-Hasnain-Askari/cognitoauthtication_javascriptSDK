@@ -1,4 +1,4 @@
-import {initiateAuth,respondToAuthChallenge} from "./Auth"
+import {createUser, initiateAuth,newPassword,passwordReset,respondToAuthChallenge} from "./Auth"
 // Login function
 async function login(username, password) {
     try {
@@ -14,32 +14,13 @@ async function login(username, password) {
 // const res = await login("hasnainaskari32@gmail.com","String123@")
 // console.log(res);
 
-async function passwordReset(username,password) {
-    try {
-        const authResult = await initiateAuth(username,password); // Provide a dummy password for initiating password reset
-        // Here, you may want to handle the challenge, but in this example, we'll assume it's handled externally
-        console.log('Password reset initiated. Challenge response needed:', authResult);
-        return authResult;
-    } catch (error) {
-        console.error('Password reset initiation failed:', error);
-        throw error;
-    }
+const session = await passwordReset('hasnainaskari32@gmail.com','String123@');
+
+// Assuming you have obtained session object and user provided a new password
+if(session){
+    await newPassword(session.Session, 'String1234@');
 }
 
-// Function to set new password after password reset
-async function newPassword(session, newPassword) {
-    try {
-        const authResult = await respondToAuthChallenge(session, { newPassword });
-        console.log('New password set successfully!');
-        // Here, you can store the tokens in localStorage or sessionStorage for future use
-        return authResult;
-    } catch (error) {
-        console.error('Setting new password failed:', error);
-        throw error;
-    }
-}
-// // Assuming you have obtained session object from passwordReset() function
-const session = await passwordReset('hasnainaskari32@gmail.com','String123@');
-console.log(session,"session");
-// // // Assuming you have obtained session object and user provided a new password
-await newPassword(session, 'String1234@');
+
+//const res = await createUser("hasnainaskari32@gmail.com", "String123@","hasnainaskari32@gmail.com");
+//console.log(res,"res");
